@@ -1,4 +1,7 @@
 .draggable-container {
-  background-color: white;
-  color: black;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+
+  width: 100%;
 }
