@@ -1,13 +1,15 @@
-import { CompChildren } from '../types';
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
+import { CompChildren } from './types/global';
 
 export type DraggableContainerItemProps = {} & CompChildren;
 
 const DraggableContainerItem = forwardRef<
-  HTMLElement,
+  HTMLDivElement,
   DraggableContainerItemProps
 >(({ children }: DraggableContainerItemProps, ref) => {
-  return <div>Hi, {children}</div>;
+  return <div ref={ref}>Hi, {children}</div>;
 });
+
+DraggableContainerItem.displayName = 'DraggableContainerItem';
 
 export default DraggableContainerItem;
