@@ -1,0 +1,20 @@
+{
+  "name": "msk-reactive",
+  "author": "MSKYurina",
+  "private": false,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "husky": "^8.0.2",
+    "lerna": "^6.0.3",
+    "lint-staged": "^13.0.4",
+    "prettier": "^2.8.0"
+  },
+  "scripts": {
+    "prepare": "husky install && lerna bootstrap"
+  },
+  "lint-staged": {
+    "**/*": "prettier --write --ignore-unknown"
+  }
+}
