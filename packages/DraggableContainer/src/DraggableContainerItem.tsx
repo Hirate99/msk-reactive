@@ -9,11 +9,16 @@ export interface ItemOffset {
   deltaY: number;
 }
 
+export interface ItemRegister {
+  moveTo?: (posX: number, posY: number, duration: number) => void;
+}
+
 export type DraggableContainerItemProps = {
   key?: string;
   className?: string;
   width?: number;
   height?: number;
+  register?: ItemRegister;
   onDragging?: (offset: ItemOffset) => void;
 } & CompChildren;
 
@@ -28,6 +33,7 @@ const DraggableContainerItem = forwardRef<
       width,
       onDragging,
       children,
+      register,
     }: DraggableContainerItemProps,
     _ref
   ) => {
@@ -48,6 +54,14 @@ const DraggableContainerItem = forwardRef<
       'draggable-item--pressed': longPressed,
       'draggable-item--dragging': isDragging,
     });
+
+    const moveTo = (posX: number, posY: number, duration: number) => {};
+
+    useEffect(() => {
+      if (register) {
+        register.moveTo = moveTo;
+      }
+    }, [register]);
 
     const longPressEventHandler = () => {
       let timeout: ReturnType<typeof setTimeout> | number = 0;

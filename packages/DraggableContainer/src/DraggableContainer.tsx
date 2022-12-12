@@ -1,6 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
-import DraggableContainerItem, { ItemOffset } from './DraggableContainerItem';
+import DraggableContainerItem, {
+  ItemOffset,
+  ItemRegister,
+} from './DraggableContainerItem';
 
 import '../styles/draggable-container.css';
 
@@ -13,6 +16,19 @@ export type DraggableContainerProps = {
   children: ContainerChildren;
 };
 
+interface ItemPosition {
+  row: number;
+  col: number;
+}
+
+const getPosX = (pos: ItemPosition, width: number) => {
+  return pos.col * width;
+};
+
+const getPosY = (pos: ItemPosition, height: number) => {
+  return pos.row * height;
+};
+
 const DraggableContainer: React.FC<DraggableContainerProps> = ({
   className: _className,
   itemWidth,
@@ -21,9 +37,40 @@ const DraggableContainer: React.FC<DraggableContainerProps> = ({
 }) => {
   const [children, setChildren] = useState<ContainerItem[]>([]);
   const [childOffsets, setChildOffsets] = useState<ItemOffset[]>([]);
+  const [childRegisters, setChildRedisters] = useState<ItemRegister[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const childRefs = useRef<HTMLElement[]>([]);
   const className = classNames('draggable-container', _className);
+
+  const getItemPos = useCallback(
+    (idx: number) => {
+      if (childRefs.current) {
+        const childRef = childRefs.current[idx];
+        const x = childRef.offsetLeft;
+        const { offsetLeft, offsetTop } = childRef;
+        return {
+          row: Math.floor(offsetTop / itemHeight),
+          col: Math.floor(offsetLeft / itemWidth),
+        } as ItemPosition;
+      }
+      return null;
+    },
+    [ref, itemHeight, itemWidth]
+  );
+
+  const toX = useCallback(
+    (pos: ItemPosition) => {
+      return getPosX(pos, itemWidth);
+    },
+    [itemWidth]
+  );
+
+  const toY = useCallback(
+    (pos: ItemPosition) => {
+      return getPosY(pos, itemHeight);
+    },
+    [itemHeight]
+  );
 
   useEffect(() => {
     if (ref.current) {
@@ -42,6 +89,7 @@ const DraggableContainer: React.FC<DraggableContainerProps> = ({
           deltaY: 0,
         }))
       );
+      setChildRedisters(childList.map((_) => ({})));
       setChildren(
         childList.map((child, idx) => {
           const ref = (_ref: HTMLElement) => {
@@ -63,7 +111,10 @@ const DraggableContainer: React.FC<DraggableContainerProps> = ({
   }, [_children]);
 
   const onDragging = (idx: number) => (offset: ItemOffset) => {
-    console.log(idx, offset);
+    console.log(idx, offset.deltaX, offset.deltaY);
+    // console.log(childRefs.current[idx]?.move)
+    console.log(getItemPos(idx));
+    console.log(childRegisters[idx]);
   };
 
   return (
@@ -72,6 +123,7 @@ const DraggableContainer: React.FC<DraggableContainerProps> = ({
         child ? (
           React.cloneElement(child, {
             ...child.props,
+            register: childRegisters[idx],
             onDragging: onDragging(idx),
           })
         ) : (
