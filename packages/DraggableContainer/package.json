@@ -2,8 +2,10 @@
   "name": "draggable-container",
   "version": "1.0.0",
   "description": "",
-  "main": "lib/index.js",
-  "module": "lib/index.js",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx webpack --config ./build/dev.webpack.config.js"

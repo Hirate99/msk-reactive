@@ -1,7 +1,7 @@
 import React from 'react';
 import './App.css';
 
-import DraggableContainer from 'draggable-container/dist/';
+import DraggableContainer from 'draggable-container';
 
 const Backgrounds = ['red', 'blue', 'grey'];
 
