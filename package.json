@@ -6,6 +6,8 @@
     "packages/*"
   ],
   "devDependencies": {
+    "eslint": "^8.28.0",
+    "eslint-plugin-react": "^7.31.11",
     "husky": "^8.0.2",
     "lerna": "^6.0.3",
     "lint-staged": "^13.0.4",
@@ -16,5 +18,8 @@
   },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
+  },
+  "dependencies": {
+    "bootstrap": "^5.2.3"
   }
 }
