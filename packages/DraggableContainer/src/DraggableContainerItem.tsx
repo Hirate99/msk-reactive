@@ -1,6 +1,14 @@
-import React, { forwardRef, useEffect, useRef, useState } from 'react';
+import React, {
+  CSSProperties,
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from 'react';
 import classNames from 'classnames';
-import { CompChildren } from './types/global';
+import { CompChildren, ItemPosition, MoveTo } from './types/global';
 
 import '../styles/draggable-item.css';
 
@@ -10,17 +18,24 @@ export interface ItemOffset {
 }
 
 export interface ItemRegister {
-  moveTo?: (posX: number, posY: number, duration: number) => void;
+  moveTo?: MoveTo;
 }
 
-export type DraggableContainerItemProps = {
+export interface DraggableContainerItemProps extends CompChildren {
   key?: string;
   className?: string;
   width?: number;
   height?: number;
   register?: ItemRegister;
+  position?: ItemPosition;
+  onDraggingStart?: () => void;
   onDragging?: (offset: ItemOffset) => void;
-} & CompChildren;
+  onLoaded?: () => void;
+  onMoveEnd?: (pos: ItemPosition) => void;
+  onMouseUp?: () => void;
+}
+
+const defaultTransition = '0.3s ease-in-out';
 
 const DraggableContainerItem = forwardRef<
   HTMLDivElement,
@@ -31,9 +46,14 @@ const DraggableContainerItem = forwardRef<
       className: _className,
       height,
       width,
-      onDragging,
       children,
       register,
+      position,
+      onDraggingStart,
+      onLoaded,
+      onDragging,
+      onMoveEnd,
+      onMouseUp,
     }: DraggableContainerItemProps,
     _ref
   ) => {
@@ -44,26 +64,130 @@ const DraggableContainerItem = forwardRef<
       deltaX: 0,
       deltaY: 0,
     });
+    const [transformStyle, setTransformStyle] = useState<CSSProperties>({
+      transition: defaultTransition,
+    });
+    const [loaded, setLoaded] = useState(false);
+    const [realPosition, setRealPosition] = useState<ItemPosition | null>(null);
+
+    useEffect(() => {
+      if (position) {
+        setRealPosition(position);
+      }
+    }, [position]);
+
+    useEffect(() => {
+      if (ref.current && !loaded) {
+        setLoaded(true);
+        if (typeof onLoaded === 'function') {
+          onLoaded();
+        }
+      }
+    }, [ref]);
 
     const style: React.CSSProperties = {
       width: width,
       height: height,
     };
 
-    const className = classNames('draggable-item', _className, {
-      'draggable-item--pressed': longPressed,
-      'draggable-item--dragging': isDragging,
-    });
+    const itemClassName = useMemo(
+      () =>
+        classNames('draggable-item', {
+          'draggable-item--pressed': longPressed,
+        }),
+      [longPressed]
+    );
 
-    const moveTo = (posX: number, posY: number, duration: number) => {};
+    const contentClassName = useMemo(
+      () =>
+        classNames('draggable-item__content', _className, {
+          'draggable-item__content--pressed': longPressed,
+          'draggable-item__content--dragging': isDragging,
+        }),
+      [longPressed, isDragging]
+    );
+
+    useEffect(() => {
+      if (
+        isDragging &&
+        (transformStyle.transition || transformStyle.transition !== 'none')
+      ) {
+        setTransformStyle({
+          ...transformStyle,
+          transition: 'none',
+        });
+      } else if (
+        !isDragging &&
+        (!transformStyle.transition || transformStyle.transition === 'none')
+      ) {
+        setTransformStyle({
+          ...transformStyle,
+          transition: defaultTransition,
+        });
+      }
+    }, [isDragging]);
+
+    const moveTo = useCallback<MoveTo>(
+      (col: number, row: number, duration?: number) => {
+        return new Promise((resolve, reject) => {
+          const _duration = duration ?? 0.3;
+          if (!position) {
+            reject('position is null');
+          }
+          if (
+            position &&
+            (!realPosition ||
+              (realPosition &&
+                (realPosition.col !== col || realPosition.row !== row)))
+          ) {
+            const transformX = (col - position.col) * 100;
+            const transformY = (row - position.row) * 100;
+            setTransformStyle({
+              ...transformStyle,
+              transform: `translate(${transformX}%, ${transformY}%)`,
+              transition: `${_duration}s ease-in-out`,
+            });
+            dragTo(0, 0);
+
+            const toPos: ItemPosition = {
+              col,
+              row,
+            };
+
+            setRealPosition(toPos);
+            setTimeout(() => {
+              if (typeof onMoveEnd === 'function') {
+                onMoveEnd(toPos);
+              }
+              resolve(toPos);
+            }, _duration * 1000);
+
+            return;
+          }
+
+          resolve(null);
+        });
+      },
+      [position, transformStyle, onMoveEnd]
+    );
+
+    const dragTo = useCallback(
+      (top: number, left: number) => {
+        if (ref.current) {
+          ref.current.style.top = `${top}px`;
+          ref.current.style.left = `${left}px`;
+        }
+      },
+      [ref]
+    );
 
     useEffect(() => {
       if (register) {
         register.moveTo = moveTo;
       }
-    }, [register]);
+    }, [register, moveTo]);
 
-    const longPressEventHandler = () => {
+    const longPressEventHandler = useCallback(() => {
       let timeout: ReturnType<typeof setTimeout> | number = 0;
 
       const longPressHandler = () => {
@@ -82,12 +206,36 @@ const DraggableContainerItem = forwardRef<
         clearTimeout(timeout);
         setIsDragging(false);
         setLongPressed(false);
+        if (typeof onMouseUp === 'function') {
+          onMouseUp();
+        }
       };
 
       return {
         mouseDownHandler,
         mouseUpHandler,
       };
+    }, [onMouseUp]);
+
+    const mouseMoveHandler = (e: MouseEvent) => {
+      if (longPressed && ref.current) {
+        if (!isDragging) {
+          setIsDragging(true);
+          if (typeof onDraggingStart === 'function') {
+            onDraggingStart();
+          }
+        }
+        const _selfOffset = {
+          deltaX: selfOffset.deltaX + e.movementX,
+          deltaY: selfOffset.deltaY + e.movementY,
+        };
+        setSelfOffset(_selfOffset);
+        dragTo(_selfOffset.deltaY, _selfOffset.deltaX);
+        if (onDragging) {
+          onDragging(_selfOffset);
+        }
+      }
+      e.stopPropagation();
     };
 
     useEffect(() => {
@@ -97,38 +245,19 @@ const DraggableContainerItem = forwardRef<
       };
     }, [longPressed, selfOffset, isDragging]);
 
-    const mouseMoveHandler = (e: MouseEvent) => {
-      if (longPressed && ref.current) {
-        if (!isDragging) {
-          setIsDragging(true);
-        }
-        const _selfOffset = {
-          deltaX: selfOffset.deltaX + e.movementX,
-          deltaY: selfOffset.deltaY + e.movementY,
-        };
-        setSelfOffset(_selfOffset);
-        ref.current.style.top = `${_selfOffset.deltaY}px`;
-        ref.current.style.left = `${_selfOffset.deltaX}px`;
-        if (onDragging) {
-          onDragging(_selfOffset);
-        }
-      }
-      e.stopPropagation();
-    };
-
     useEffect(() => {
       const { mouseDownHandler, mouseUpHandler } = longPressEventHandler();
       ref.current?.addEventListener('mousedown', mouseDownHandler);
-      document.addEventListener('mouseup', mouseUpHandler);
+      ref.current?.addEventListener('mouseup', mouseUpHandler);
       return () => {
         ref.current?.removeEventListener('mousedown', mouseDownHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
+        ref.current?.removeEventListener('mouseup', mouseUpHandler);
       };
-    }, []);
+    }, [longPressEventHandler, ref]);
 
     return (
       <div
-        className={className}
+        className={itemClassName}
         ref={(e) => {
           if (typeof _ref === 'function') {
             _ref(e);
@@ -137,9 +266,12 @@ const DraggableContainerItem = forwardRef<
           }
           ref.current = e;
         }}
-        style={style}
+        style={{
+          ...style,
+          ...transformStyle,
+        }}
       >
-        {children}
+        <div className={contentClassName}>{children}</div>
       </div>
     );
   }

@@ -26,7 +26,7 @@ function App() {
           itemHeight={200}
         >
           {DraggableItems.map((item, idx) => (
-            <DraggableContainer.Item key={idx}>
+            <DraggableContainer.Item key={`${idx}`}>
               <div style={item.style}>{item.title}</div>
             </DraggableContainer.Item>
           ))}
